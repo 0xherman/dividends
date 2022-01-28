@@ -11,9 +11,11 @@ const providerOptions = {
 		package: WalletConnectProvider,
 		options: {
 			rpc: {
+				1: 'https://speedy-nodes-nyc.moralis.io/ec9afe6028435732c70a61dc/eth/mainnet',
+				25: 'https://evm-cronos.crypto.org',
+				56: 'https://speedy-nodes-nyc.moralis.io/ec9afe6028435732c70a61dc/bsc/mainnet',
 				43114: 'https://speedy-nodes-nyc.moralis.io/ec9afe6028435732c70a61dc/avalanche/mainnet'
 			},
-			network: 'avalanche-fuji-mainnet',
 		}
 	},
 	'custom-walletlink': {
@@ -42,7 +44,6 @@ const providerOptions = {
 };
 
 const web3Modal = new Web3Modal({
-	network: 43114,
 	cacheProvider: false, // optional
 	providerOptions // required
 });
