@@ -27,15 +27,32 @@ const abi = [
 	}
 ];
 
+const tokenAbi = [
+	{
+		"inputs": [],
+		"name": "distributorAddress",
+		"outputs": [
+			{
+				"internalType":"address",
+				"name":"",
+				"type":"address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"}
+];
+
 const WalletConnector = function (messageBox, connectWalletButton, disconnectWalletButton) {
-	this.dividendAddress = new URLSearchParams(window.location.search).get("addr"),
-	this.messageBox = messageBox ? messageBox : document.getElementById('message'),
-	this.connectWalletButton = connectWalletButton ? connectWalletButton : document.getElementById('connect-wallet'),
-	this.disconnectWalletButton = disconnectWalletButton ? disconnectWalletButton : document.getElementById('disconnect-wallet'),
-	this.claimDividendsButton = document.getElementById("claim-dividends"),
-	this.refreshButton = document.getElementById("refresh-data"),
-	this.account = "",
-	this.walletConnected = false,
+	this.tokenAddress = new URLSearchParams(window.location.search).get("token")
+	this.dividendAddress = new URLSearchParams(window.location.search).get("distributor")
+	this.messageBox = messageBox ? messageBox : document.getElementById('message')
+	this.connectWalletButton = connectWalletButton ? connectWalletButton : document.getElementById('connect-wallet')
+	this.disconnectWalletButton = disconnectWalletButton ? disconnectWalletButton : document.getElementById('disconnect-wallet')
+	this.claimDividendsButton = document.getElementById("claim-dividends")
+	this.refreshButton = document.getElementById("refresh-data")
+	this.tokenAddressInput = document.getElementById("tokenAddress")
+	this.account = ""
+	this.walletConnected = false
 	this.init = function () {
 		if (!(this.connectWalletButton && this.connectWalletButton instanceof Element)) {
 			throw "connectWalletButton must be a DOM Element"
@@ -55,6 +72,13 @@ const WalletConnector = function (messageBox, connectWalletButton, disconnectWal
 		this.refreshButton.addEventListener('click', () => {
 			this.loadData()
 		})
+		this.tokenAddressInput.addEventListener('keyup', (e) => {
+			if (this.walletConnected && e.target.value.match(/^0x[a-fA-F0-9]{40}$/)) {
+				this.tokenAddress = e.target.value;
+				this.loadData()
+			} 
+		})
+		this.tokenAddressInput.value = this.tokenAddress;
 	},
 	this.checkProviderIfLoggedIn = async function () {
 		if (this.walletConnected && providerLoggedInWith == 'walletconnect') {
@@ -86,18 +110,26 @@ const WalletConnector = function (messageBox, connectWalletButton, disconnectWal
 		this.walletConnected = true
 		this.account = await this.fetchAccountData()
 		let message = "Wallet: " + this.account
-		if (this.dividendAddress) {
-			console.log(this.dividendAddress)
-			const pending = await this.fetchPendingDividends(this.account)
-			document.getElementById("claim").style.display = "block";
-			message += "\nPending Rewards: " + pending
+		try {
+			if (!this.dividendAddress && !this.tokenAddress) {
+				message += "\nEnter a token address";
+			}
+			else {
+				if (!this.dividendAddress) {
+					const contract = new Web3Instance.eth.Contract(tokenAbi, this.tokenAddress);
+					this.dividendAddress = await contract.methods.distributorAddress().call();
+				}
+				const pending = await this.fetchPendingDividends(this.account)
+				document.getElementById("claim").style.display = "block";
+				message += "\nPending Rewards: " + pending
+			}
+		} 
+		catch (ex) {
+			message += "\nFailed to load dividend distributor address";
 		}
 		this.showMessage(message)
 	},
 	this.disconnectWallet = async function () {
-
-		
-
 		// Try to close the web3 session 
 		try {
 			await Web3Provider.close()
@@ -135,11 +167,8 @@ const WalletConnector = function (messageBox, connectWalletButton, disconnectWal
 		return selectedAccount
 	},
 	this.fetchPendingDividends = async function (account) {
-		console.log(account, this.dividendAddress, abi)
 		const contract = new Web3Instance.eth.Contract(abi, this.dividendAddress, { from: account });
 		const pending = await contract.methods.getUnpaidEarnings(account).call({ from: account });
-		console.log(pending)
-		console.log("init")
 		return Web3Instance.utils.fromWei(pending);
 	}
 
